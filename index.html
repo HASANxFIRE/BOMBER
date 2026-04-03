@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bomber API Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            flex-direction: column;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+            width: 100%;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .loading {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #007bff;
+            display: none;
+        }
+
+        .results {
+            margin-top: 20px;
+            text-align: left;
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+
+        .animated-link {
+            animation: color-change 5s infinite;
+            text-decoration: none;
+        }
+
+        @keyframes color-change {
+            0% {
+                color: orange;
+            }
+
+            25% {
+                color: blue;
+            }
+
+            50% {
+                color: red;
+            }
+
+            75% {
+                color: green;
+            }
+
+            100% {
+                color: orange;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header style="background-color: #000075; color: white; padding: 10px 0; text-align: center; position: fixed; width: 100%; top: 0;">
+        <h2>Noob Boomber</h2>
+    </header>
+<center>
+<script type="text/javascript">
+	atOptions = {
+		'key' : 'aeb1dc240df8fbfaef1b2b68907cfd5a',
+		'format' : 'iframe',
+		'height' : 60,
+		'width' : 468,
+		'params' : {}
+	};
+</script>
+<script type="text/javascript" src="//www.highperformanceformat.com/aeb1dc240df8fbfaef1b2b68907cfd5a/invoke.js"></script>
+</center>
+    </div>
+    <div class="container" style="margin-top: 80px; margin-bottom: 60px;">
+        <h1>Send Requests</h1>
+        <form id="bombForm">
+            <div class="form-group">
+                <label for="number">BD Number (without +88):</label>
+                <input type="text" id="number" name="number" placeholder="e.g., 016xxxxxxxx" required>
+            </div>
+            <div class="form-group">
+                <label for="amount">Number of Requests (1-100):</label>
+                <input type="number" id="amount" name="amount" min="1" max="100" value="1" required>
+            </div>
+            <button type="submit">Send Requests</button>
+        </form>
+        <div class="loading" id="loadingIndicator">Sending requests... Please wait.</div>
+        <div class="error" id="errorMessage"></div>
+        <div class="results" id="resultsDisplay"></div>
+    </div>
+<center>
+    <script type="text/javascript">
+	atOptions = {
+		'key' : '3c1293e760852e3cc5ffaaca4c1f2e77',
+		'format' : 'iframe',
+		'height' : 50,
+		'width' : 320,
+		'params' : {}
+	};
+</script>
+<script type="text/javascript" src="//www.highperformanceformat.com/3c1293e760852e3cc5ffaaca4c1f2e77/invoke.js"></script>
+</center>
+    </div>
+    <footer style="background-color: #000075; color: white; padding: 1px 0; text-align: center; position: fixed; width: 100%; bottom: 0;">
+        <p>&copy; 2025 Bomber API. All rights reserved <br><a href="https://t.me/no_coder_xone" class="animated-link">ɴᴏ ᴄᴏᴅᴇʀ ᴘʀᴏ &lt;/𝗯𝗕𝗜𝗡𝗹&gt;</a> </p>
+    </footer>
+
+    <script>
+        document.getElementById('bombForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const number = document.getElementById('number').value;
+            const amount = document.getElementById('amount').value;
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const resultsDisplay = document.getElementById('resultsDisplay');
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = '';
+            resultsDisplay.textContent = '';
+            loadingIndicator.style.display = 'block';
+            try {
+                const response = await fetch('/bomb', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        number: number,
+                        amount: parseInt(amount)
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    resultsDisplay.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    errorMessage.textContent = `Error: ${data.error || 'Something went wrong.'}`;
+                }
+            } catch (error) {
+                errorMessage.textContent = `Network error: ${error.message}`;
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        });
+    </script>
+    <script>
+        if (window.innerWidth >= 768) {
+            var adScript = document.createElement('script');
+            adScript.type = 'text/javascript';
+            adScript.src = '//pl27372759.profitableratecpm.com/fb/4f/37/fb4f377c61117088ab923c6d535b8371.js';
+            document.body.appendChild(adScript);
+        }
+    </script>
+</body>
+</html>
+
+
