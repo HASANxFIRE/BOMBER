@@ -4,21 +4,16 @@
     {
       "src": "main.py",
       "use": "@vercel/python",
-      "config": { "maxLambdaSize": "15mb", "runtime": "python3.9" }
-    },
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
+      "config": { 
+        "maxLambdaSize": "50mb", 
+        "runtime": "python3.9"
+      }
     }
   ],
   "routes": [
     {
-      "src": "/bomb",
+      "src": "/api/(.*)",
       "dest": "main.py"
-    },
-    {
-      "src": "/",
-      "dest": "/index.html"
     },
     {
       "src": "/(.*)",
